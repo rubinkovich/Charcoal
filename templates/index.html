@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            text-align: center;
+            padding: 20px;
+            background-color: #333;
+            color: #fff;
+        }
+        form {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+        }
+        label, input, select {
+            display: block;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        input[type="number"] {
+            width: 70px;
+        }
+        table {
+            width: 100%;
+            margin: 20px 0;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #333;
+            color: #fff;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background-color: #333;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #444;
+        }
+        @media (max-width: 600px) {
+            form {
+                padding: 10px;
+            }
+        }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>
+    $(document).ready(function(){
+        var totalCostText = ''
+        function formatCurrency(value) {
+            return Number(value).toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' }).replace('₽', 'руб.');
+        }
+        function calculateCost() {
+            var totalCost = 0;
+            $('.product').each(function(){
+                var price = $(this).data('price');
+                var quantity = $(this).find('.quantity').val();
+                var cost = price * quantity;
+                $(this).find('.cost').text(formatCurrency(cost));
+                totalCost += cost;
+            });
+            if ($('#priceType').val() == 'С НДС') {
+                var nds = totalCost / 6;
+                totalCostText = (formatCurrency(totalCost) + ' (в т.ч. НДС ' + formatCurrency(nds) + ')');
+            } else {
+                totalCostText = (formatCurrency(totalCost));
+            }
+            $('#totalCost').text(totalCostText);
+            return totalCost;
+        }
+        $('#priceType').change(function(){
+            var quantities = $('.quantity').map(function(){ return $(this).val(); }).get();
+            localStorage.setItem('quantities', JSON.stringify(quantities));
+            var customer = $('#customer').val();
+            var phone = $('#phone').val();
+            var address = $('#address').val();
+            localStorage.setItem('customer', customer);
+            localStorage.setItem('phone', phone);
+            localStorage.setItem('address', address);
+            window.location.href = '/?price_type=' + $(this).val();
+        });
+        var quantities = JSON.parse(localStorage.getItem('quantities')) || [];
+        $('.quantity').each(function(i){
+            $(this).val(quantities[i] || 0);
+        }).change(calculateCost);
+        $('.price').each(function(){
+            $(this).text(formatCurrency($(this).text()));
+        });
+        $('#customer').val(localStorage.getItem('customer') || '');
+        $('#phone').val(localStorage.getItem('phone') || '');
+        $('#address').val(localStorage.getItem('address') || '');
+        calculateCost();
+        $('#submitOrder').click(function(e){
+            e.preventDefault();
+            var customer = $('#customer').val();
+            var phone = $('#phone').val();
+            var address = $('#address').val();
+            if (!customer || !phone || !address) {
+                alert('Пожалуйста, заполните все поля.');
+                return;
+            }
+            var order = [];
+            $('.product').each(function(){
+                var quantity = $(this).find('.quantity').val();
+                if (quantity > 0) {
+                    var name = $(this).find('.name').text();
+                    order.push({ name: name, quantity: quantity });
+                }
+            });
+            if (order.length == 0) {
+                alert('Пожалуйста, добавьте хотя бы один товар в заказ.');
+                return;
+            }
+            var totalCost = calculateCost();
+            $.ajax({
+                url: '/',
+                method: 'POST',
+                data: {
+                    customer: customer,
+                    phone: phone,
+                    address: address,
+                    priceType: $('#priceType').val(),
+                    order: JSON.stringify(order),
+                    total_cost: totalCostText
+                },
+                success: function(response) {
+                    alert('Ваш заказ на сумму ' + totalCostText + ' принят.'); // Выводим сообщение
+                    $('.quantity').val(0); // Обнуляем количество каждого товара
+                    localStorage.setItem('quantities', JSON.stringify([])); // Обнуляем количество каждого товара в localStorage
+                    calculateCost(); // Пересчитываем общую стоимость заказа
+                }
+            });
+        });
+    });
+    </script>
+</head>
+<body>
+    <h1>Форма заказа</h1>
+    <form>
+        <label for="customer">Заказчик:</label><br>
+        <input type="text" id="customer" name="customer"><br>
+        <label for="phone">Телефон:</label><br>
+        <input type="text" id="phone" name="phone"><br>
+        <label for="address">Адрес доставки:</label><br>
+        <input type="text" id="address" name="address"><br>
+    </form>
+    <p>Способ оплаты:
+    <select id="priceType">
+        <option value="Наличный расчет" {% if price_type == 'Наличный расчет' %}selected{% endif %}>Наличный расчет</option>
+        <option value="Без НДС" {% if price_type == 'Без НДС' %}selected{% endif %}>Без НДС</option>
+        <option value="С НДС" {% if price_type == 'С НДС' %}selected{% endif %}>С НДС</option>
+    </select>
+    </p>
+    <table>
+        <tr>
+            <th>Наименование</th>
+            <th>Цена</th>
+            <th>Количество</th>
+            <th>Стоимость</th>
+        </tr>
+        {% for product in products %}
+        <tr class="product" data-price="{{product['Цена']}}">
+            <td class="name">{{ product['Наименование'] }}</td>
+            <td class="price">{{ product['Цена'] }}</td>
+            <td><input class="quantity" type="number" value="0" min="0"></td>
+            <td class="cost">0</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <p>Общая стоимость заказа: <span id="totalCost"></span></p>
+    <button id="submitOrder">Отправить заказ</button>
+</body>
+</html>
