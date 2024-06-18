@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <style>
+        /* Сброс стилей */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f7f7f7;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .form-group label {
+            flex: 0 0 100px;
+            margin-right: 10px;
+        }
+
+        .form-group input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        select {
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 5px;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            text-align: center; /* Выравнивание заголовков по центру */
+            background-color: #f0f0f0;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        #submitOrder {
+            display: block;
+            width: 200px; /* или другая фиксированная ширина по вашему выбору */
+            padding: 10px;
+            margin: 0 auto; /* Автоматические отступы для центрирования */
+            background-color: #808080; /* Серый цвет фона */
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #submitOrder:hover {
+            background-color: #666; /* Темно-серый цвет при наведении */
+        }
+
+        .price, .cost {
+            text-align: right; /* Выравнивание цены и стоимости по правому краю */
+            padding-right: 30px; /* Добавление небольшого отступа справа */
+        }
+
+        /* Стили для всплывающего изображения */
+        .name {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .name:hover .tooltip {
+            display: block;
+        }
+
+        .tooltip {
+            display: none;
+            position: absolute;
+            z-index: 100;
+            padding: 5px;
+            border: 1px solid #ddd;
+            background-color: white;
+            top: 20px;
+            left: 20px;
+        }
+    </style>
+    <script>
+    $(document).ready(function(){
+        var totalCostText = ''
+        function formatCurrency(value) {
+            return Number(value).toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' }).replace('₽', 'руб.');
+        }
+        function calculateCost() {
+            var totalCost = 0;
+            $('.product').each(function(){
+                var price = $(this).data('price');
+                var quantity = $(this).find('.quantity').val();
+                var cost = price * quantity;
+                $(this).find('.cost').text(formatCurrency(cost));
+                totalCost += cost;
+            });
+            if ($('#priceType').val() == 'С НДС') {
+                var nds = totalCost / 6;
+                totalCostText = (formatCurrency(totalCost) + ' (в т.ч. НДС ' + formatCurrency(nds) + ')');
+            } else {
+                totalCostText = (formatCurrency(totalCost));
+            }
+            $('#totalCost').text(totalCostText);
+            return totalCost;
+        }
+        $('#priceType').change(function(){
+            var quantities = $('.quantity').map(function(){ return $(this).val(); }).get();
+            localStorage.setItem('quantities', JSON.stringify(quantities));
+            var customer = $('#customer').val();
+            var phone = $('#phone').val();
+            var address = $('#address').val();
+            localStorage.setItem('customer', customer);
+            localStorage.setItem('phone', phone);
+            localStorage.setItem('address', address);
+            window.location.href = '/?price_type=' + $(this).val();
+        });
+        var quantities = JSON.parse(localStorage.getItem('quantities')) || [];
+        $('.quantity').each(function(i){
+            $(this).val(quantities[i] || 0);
+        }).change(calculateCost);
+        $('.price').each(function(){
+            $(this).text(formatCurrency($(this).text()));
+        });
+        $('#customer').val(localStorage.getItem('customer') || '');
+        $('#phone').val(localStorage.getItem('phone') || '');
+        $('#address').val(localStorage.getItem('address') || '');
+        calculateCost();
+        $('#submitOrder').click(function(e){
+            e.preventDefault();
+            var customer = $('#customer').val();
+            var phone = $('#phone').val();
+            var address = $('#address').val();
+            if (!customer || !phone || !address) {
+                alert('Пожалуйста, заполните все поля.');
+                return;
+            }
+            var order = [];
+            $('.product').each(function(){
+                var quantity = $(this).find('.quantity').val();
+                if (quantity > 0) {
+                    var name = $(this).find('.name').text();
+                    order.push({ name: name, quantity: quantity });
+                }
+            });
+            if (order.length == 0) {
+                alert('Пожалуйста, добавьте хотя бы один товар в заказ.');
+                return;
+            }
+            var totalCost = calculateCost();
+            $.ajax({
+                url: '/',
+                method: 'POST',
+                data: {
+                    customer: customer,
+                    phone: phone,
+                    address: address,
+                    priceType: $('#priceType').val(),
+                    order: JSON.stringify(order),
+                    total_cost: totalCostText
+                },
+                success: function(response) {
+                    alert('Ваш заказ на сумму ' + totalCostText + ' принят.'); // Выводим сообщение
+                    $('.quantity').val(0); // Обнуляем количество каждого товара
+                    localStorage.setItem('quantities', JSON.stringify([])); // Обнуляем количество каждого товара в localStorage
+                    calculateCost(); // Пересчитываем общую стоимость заказа
+                }
+            });
+        });
+    });
+    </script>
+</head>
+<body>
+    <h1>Форма заказа</h1>
+    <form>
+        <div class="form-group">
+            <label for="customer">Заказчик:</label>
+            <input type="text" id="customer" name="customer">
+        </div>
+        <div class="form-group">
+            <label for="phone">Телефон:</label>
+            <input type="text" id="phone" name="phone">
+        </div>
+        <div class="form-group">
+            <label for="address">Адрес доставки:</label>
+            <input type="text" id="address" name="address">
+        </div>
+    </form>
+    <p>Способ оплаты:
+    <select id="priceType">
+        <option value="Наличный расчет" {% if price_type == 'Наличный расчет' %}selected{% endif %}>Наличный расчет</option>
+        <option value="Без НДС" {% if price_type == 'Без НДС' %}selected{% endif %}>Без НДС</option>
+        <option value="С НДС" {% if price_type == 'С НДС' %}selected{% endif %}>С НДС</option>
+    </select>
+    </p>
+    <table>
+        <tr>
+            <th>Наименование</th>
+            <th>Цена</th>
+            <th>Количество</th>
+            <th>Стоимость</th>
+        </tr>
+        {% for product in products %}
+        <tr class="product" data-price="{{product['Цена']}}">
+            <td class="name">
+                {{ product['Наименование'] }}
+                <!-- Всплывающее изображение -->
+                <div class="tooltip">
+                    <img src="\static\images\{{ product['Наименование'] }}.bmp" alt="{{ product['Наименование'] }}">
+                </div>
+            </td>
+            <td class="price">{{ product['Цена'] }}</td>
+            <td><input class="quantity" type="number" value="0" min="0"></td>
+            <td class="cost">0</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <p>Общая стоимость заказа: <span id="totalCost"></span></p>
+    <button id="submitOrder">Отправить заказ</button>
+
+    <script>
+        $(document).ready(function(){
+            $('.name').hover(function(){
+                // Показываем всплывающее изображение
+                $(this).find('.tooltip').show();
+            }, function(){
+                // Скрываем всплывающее изображение
+                $(this).find('.tooltip').hide();
+            });
+        });
+    </script>
+</body>
+</html>

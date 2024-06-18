@@ -1,27 +1,35 @@
-
 import json
 from flask import Flask, render_template, request
 import pandas as pd
 import requests
 
 TOKEN = "7059904287:AAFFpELPxz8WDC0q29tuDWD6oQkCNSs-FTo"
-CHAT_ID = "133536406"
+CHAT_ID_RUBIN = "7009181472"
+CHAT_ID_ALEX = "133536406"
+CHAT_ID_MAX = "956170880"
+CHAT_ID_SVETA = "1330340515"
+
 
 def get_last_order_number():
     with open('last_order_number.txt', 'r') as f:
         return int(f.read().strip())
 
+
 def set_last_order_number(number):
     with open('last_order_number.txt', 'w') as f:
         f.write(str(number))
 
-def send_telegram_message(text):
+
+def send_telegram_message(text, chats):
     url = f'https://api.telegram.org/bot{TOKEN}/sendMessage'
-    data = {'chat_id': CHAT_ID, 'text': text}
-    response = requests.post(url, data=data)
+    for chat in chats:
+        data = {'chat_id': chat, 'text': text}
+        response = requests.post(url, data=data)
     return response.json()
 
+
 app = Flask(__name__)
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -52,9 +60,19 @@ def index():
                    f'Оплата: {price_type}\n\n'
                    f'{order_text}\n'
                    f'Общая стоимость заказа: {total_cost}')
-        send_telegram_message(message)
+
+        match price_type:  #Формируем список получателей
+            case 'Наличный расчет':
+                chats = {CHAT_ID_ALEX}
+            case 'Без НДС':
+                chats = {CHAT_ID_ALEX}
+            case 'С НДС':
+                chats = {CHAT_ID_ALEX}
+
+        send_telegram_message(message, chats)
 
     return render_template('index.html', products=products, price_type=price_type)
 
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0')
