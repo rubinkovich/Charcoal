@@ -88,7 +88,6 @@
             text-align: right; /* Выравнивание цены и стоимости по правому краю */
             padding-right: 30px; /* Добавление небольшого отступа справа */
         }
-
     </style>
     <script>
     $(document).ready(function(){
@@ -177,6 +176,25 @@
                 }
             });
         });
+        $('.name').hover(function(){
+            // Получаем наименование товара
+            var productName = $(this).text().trim();
+            // Создаем элемент изображения, если он еще не создан
+            if ($('#image-preview').length === 0) {
+                $('<img>', {
+                    id: 'image-preview',
+                    src: '/static/images/' + productName + '.bmp', // Путь к изображению
+                    alt: productName,
+                    style: 'position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);' // Центрирование изображения
+                }).appendTo('body');
+            } else {
+                // Обновляем путь к изображению для существующего элемента
+                $('#image-preview').attr('src', '/static/images/' + productName + '.bmp').show();
+            }
+        }, function(){
+            // Скрываем изображение при уходе курсора
+            $('#image-preview').hide();
+        });
     });
     </script>
 </head>
@@ -212,9 +230,7 @@
         </tr>
         {% for product in products %}
         <tr class="product" data-price="{{product['Цена']}}">
-            <td class="name">
-                {{ product['Наименование'] }}
-            </td>
+            <td class="name">{{ product['Наименование'] }}</td>
             <td class="price">{{ product['Цена'] }}</td>
             <td><input class="quantity" type="number" value="0" min="0"></td>
             <td class="cost">0</td>
@@ -223,5 +239,6 @@
     </table>
     <p>Общая стоимость заказа: <span id="totalCost"></span></p>
     <button id="submitOrder">Отправить заказ</button>
+
 </body>
 </html>
