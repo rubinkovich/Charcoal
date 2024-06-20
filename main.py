@@ -1,3 +1,5 @@
+import logging
+from logging.handlers import RotatingFileHandler
 import json
 from flask import Flask, render_template, request
 import pandas as pd
@@ -28,8 +30,23 @@ def send_telegram_message(text, chats):
     return response.json()
 
 
+# Создание объекта приложения Flask
 app = Flask(__name__)
 
+# Настройка логирования
+def setup_logging():
+    # Создание обработчика, который записывает логи в файл
+    handler = RotatingFileHandler('C:/Charcoal order/app.log', maxBytes=10000000, backupCount=3)
+    # Определение формата сообщений
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    handler.setFormatter(formatter)
+    handler.setLevel(logging.INFO)
+    # Добавление обработчика к регистратору приложения
+    app.logger.addHandler(handler)
+    app.logger.setLevel(logging.INFO)
+
+# Вызов функции настройки логирования
+setup_logging()
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -63,16 +80,17 @@ def index():
 
         match price_type:  #Формируем список получателей
             case 'Наличный расчет':
-                chats = {CHAT_ID_ALEX}
+                chats = {CHAT_ID_MAX, CHAT_ID_SVETA}
             case 'Без НДС':
-                chats = {CHAT_ID_ALEX}
+                chats = {CHAT_ID_MAX, CHAT_ID_SVETA}
             case 'С НДС':
-                chats = {CHAT_ID_ALEX}
+                chats = {CHAT_ID_MAX, CHAT_ID_SVETA, CHAT_ID_RUBIN}
+        if customer == "Test":
+            chats = {CHAT_ID_ALEX}
 
         send_telegram_message(message, chats)
 
     return render_template('index.html', products=products, price_type=price_type)
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0')

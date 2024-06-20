@@ -148,7 +148,7 @@
             $('.product').each(function(){
                 var quantity = $(this).find('.quantity').val();
                 if (quantity > 0) {
-                    var name = $(this).find('.name').text();
+                    var name = $(this).data('code');
                     order.push({ name: name, quantity: quantity });
                 }
             });
@@ -178,18 +178,18 @@
         });
         $('.name').hover(function(){
             // Получаем наименование товара
-            var productName = $(this).text().trim();
+            var productCode = $(this).closest('.product').data('code');
             // Создаем элемент изображения, если он еще не создан
             if ($('#image-preview').length === 0) {
                 $('<img>', {
                     id: 'image-preview',
-                    src: '/static/images/' + productName + '.bmp', // Путь к изображению
-                    alt: productName,
+                    src: '/static/images/' + productCode + '.bmp', // Путь к изображению
+                    alt: productCode,
                     style: 'position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);' // Центрирование изображения
                 }).appendTo('body');
             } else {
                 // Обновляем путь к изображению для существующего элемента
-                $('#image-preview').attr('src', '/static/images/' + productName + '.bmp').show();
+                $('#image-preview').attr('src', '/static/images/' + productCode + '.bmp').show();
             }
         }, function(){
             // Скрываем изображение при уходе курсора
@@ -200,6 +200,8 @@
 </head>
 <body>
     <h1>Форма заказа</h1>
+    <h4>Цены действительны от суммы 10 000 руб. в пересчете за наличный расчет.<br>
+На сумму от 5 000 до 10 000 руб. +10%, кроме самовывоза</h4><br>
     <form>
         <div class="form-group">
             <label for="customer">Заказчик:</label>
@@ -229,7 +231,7 @@
             <th>Стоимость</th>
         </tr>
         {% for product in products %}
-        <tr class="product" data-price="{{product['Цена']}}">
+        <tr class="product" data-price="{{product['Цена']}}" data-code="{{product['Код']}}">
             <td class="name">{{ product['Наименование'] }}</td>
             <td class="price">{{ product['Цена'] }}</td>
             <td><input class="quantity" type="number" value="0" min="0"></td>
