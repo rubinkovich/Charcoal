@@ -5,11 +5,11 @@ from flask import Flask, render_template, request
 import pandas as pd
 import requests
 
-TOKEN = "7059904287:AAFFpELPxz8WDC0q29tuDWD6oQkCNSs-FTo"
-CHAT_ID_RUBIN = "7009181472"
-CHAT_ID_ALEX = "133536406"
-CHAT_ID_MAX = "956170880"
-CHAT_ID_SVETA = "1330340515"
+TOKEN = ""
+CHAT_ID_RUBIN = ""
+CHAT_ID_ALEX = ""
+CHAT_ID_MAX = ""
+CHAT_ID_SVETA = ""
 
 
 def get_last_order_number():
@@ -64,6 +64,7 @@ def index():
         price_type = request.form.get('priceType')
         order = request.form.get('order')
         total_cost = request.form.get('total_cost')
+        desired_delivery_date = request.form.get('desiredDate')
 
         data = json.loads(order)
         order_text = ""
@@ -74,6 +75,7 @@ def index():
                    f'Заказчик: {customer}\n'
                    f'Телефон: {phone}\n'
                    f'Адрес доставки: {address}\n'
+                   f'Дата поставки: {desired_delivery_date}\n'
                    f'Оплата: {price_type}\n\n'
                    f'{order_text}\n'
                    f'Общая стоимость заказа: {total_cost}')
@@ -86,6 +88,8 @@ def index():
             case 'С НДС':
                 chats = {CHAT_ID_MAX, CHAT_ID_SVETA, CHAT_ID_RUBIN}
         if customer == "Test":
+            last_order_number = get_last_order_number() - 1   # Уменьшаем номер заказа на единицу,
+            set_last_order_number(last_order_number)          # чтобы не сбивать нумерацию при тестах
             chats = {CHAT_ID_ALEX}
 
         send_telegram_message(message, chats)
